@@ -5,3 +5,5 @@
 
  In build.bat, change the compiler path to yours
 
+ Rename "src/secret.py.example" to "src/secret.py" and input your twitch application token thing
+
