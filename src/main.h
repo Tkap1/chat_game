@@ -304,6 +304,18 @@ struct s_font
 	} frame_data; \
 }
 
+struct s_cell
+{
+	int capacity;
+	int count;
+	int* entity_index_arr;
+};
+
+struct s_spatial_thing
+{
+	s_carray<s_cell, c_cells_right * c_cells_right> cell_arr;
+};
+
 struct s_game
 {
 	b8 reset_game;
@@ -316,6 +328,8 @@ struct s_game
 	s_sarray<s_particle, 131072> particle_arr;
 	s_sarray<s_entity, 131072> entity_arr;
 	s_carray<s_introduction, 131072> introduction_arr;
+
+	s_spatial_thing spatial_thing;
 
 	zeroable_struct(
 		int num_chatters_alive;
@@ -355,3 +369,5 @@ DWORD WINAPI read_chat_messages(void* user_data);
 func void add_timed_message(char* text);
 func float get_timed_message_target_y_based_on_array_index(int index);
 func int get_num_chatters_alive();
+func s_spatial_thing make_spatial_thing();
+func s_sarray<s_cell*, 9> query_spatial_thing(s_v2 pos);

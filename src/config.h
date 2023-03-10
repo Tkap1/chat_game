@@ -3,6 +3,8 @@ global constexpr char* c_python_path = "C:/Users/PakT/AppData/Local/Programs/Pyt
 
 global constexpr int c_max_health = 100;
 
+global constexpr int c_cells_right = 32;
+
 // @Note(tkap, 10/03/2023): Amount of chatters alive has to be lower than this in order to display some things,
 // like chatter name and health bar
 global constexpr int c_chatters_alive_threshold = 40;

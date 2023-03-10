@@ -435,3 +435,13 @@ func s_v4 hsv_to_rgb(float hue, float saturation, float value)
 
 	return color;
 }
+
+func int roundfi(float x)
+{
+	return (int)roundf(x);
+}
+
+func int floorfi(float x)
+{
+	return (int)floorf(x);
+}

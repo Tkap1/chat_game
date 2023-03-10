@@ -397,6 +397,8 @@ int main(int argc, char** argv)
 
 			s_sarray<s_entity_and_skill, 1024> skills_to_use;
 
+			game->spatial_thing = make_spatial_thing();
+
 			if(g_chat_messages.count > 0)
 			{
 				g_message_thread.lock();
@@ -965,9 +967,17 @@ int main(int argc, char** argv)
 			}
 			// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^		particles end		^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 		}
+
+		for(int cell_i = 0; cell_i < game->spatial_thing.cell_arr.max_elements(); cell_i++)
+		{
+			if(game->spatial_thing.cell_arr[cell_i].entity_index_arr)
+			{
+				free(game->spatial_thing.cell_arr[cell_i].entity_index_arr);
+			}
+		}
+		game->frame_data = zero;
 		// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^		update game end		^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-		game->frame_data = zero;
 
 
 		// {
@@ -1590,6 +1600,64 @@ func int get_num_chatters_alive()
 	{
 		if(entity->type != e_entity_type_chatter) { break; }
 		if(!entity->dead) { result++; }
+	}
+	return result;
+}
+
+func s_spatial_thing make_spatial_thing()
+{
+	s_spatial_thing bs = zero;
+	foreach(entity_i, entity, game->entity_arr)
+	{
+		if(entity->type != e_entity_type_chatter) { break; }
+
+		int c_cell_size = roundfi(g_window_size.x / c_cells_right);
+		int x_index = floorfi(entity->pos.x / c_cell_size);
+		int y_index = floorfi(entity->pos.y / c_cell_size);
+		int index = x_index + y_index * c_cells_right;
+
+		s_cell* cell = &bs.cell_arr[index];
+		if(cell->count == 0)
+		{
+			cell->capacity = 128;
+			cell->entity_index_arr = (int*)malloc(sizeof(int) * cell->capacity);
+		}
+		else if(cell->count + 1 > cell->capacity)
+		{
+			cell->capacity *= 2;
+			cell->entity_index_arr = (int*)realloc(cell->entity_index_arr, sizeof(int) * cell->capacity);
+		}
+		cell->entity_index_arr[cell->count] = entity_i;
+		cell->count += 1;
+	}
+	return bs;
+}
+
+func s_sarray<s_cell*, 9> query_spatial_thing(s_v2 pos)
+{
+	s_sarray<s_cell*, 9> result;
+	s_spatial_thing* st = &game->spatial_thing;
+
+	s_v2i offsets[] = {
+		v2i(-1, -1), v2i(0, -1), v2i(1, -1),
+		v2i(-1, 0), v2i(0, 0), v2i(1, 0),
+		v2i(-1, 1), v2i(0, 1), v2i(1, 1),
+	};
+
+	int c_cell_size = roundfi(g_window_size.x / c_cells_right);
+	int x_index = floorfi(pos.x / c_cell_size);
+	int y_index = floorfi(pos.y / c_cell_size);
+	for(int offset_i = 0; offset_i < array_count(offsets); offset_i++)
+	{
+		s_v2i offset = offsets[offset_i];
+		int x = x_index + offset.x;
+		int y = y_index + offset.y;
+
+		if(x < 0 || x >= c_cells_right) { continue; }
+		if(y < 0 || y >= c_cells_right) { continue; }
+
+		int index = x + y * c_cells_right;
+		result.add(&st->cell_arr[index]);
 	}
 	return result;
 }
