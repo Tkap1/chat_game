@@ -2,7 +2,7 @@
 import socket
 import secret
 import time
-import config import target_channel
+from config import target_channel
 
 twitch = None
 
@@ -15,7 +15,7 @@ def main():
 	# @Note(tkap, 01/12/2022): Try to connect until it works. Twitch likes to fail every now and then for some reason
 	while True:
 		twitch = socket.create_connection(("irc.chat.twitch.tv", 6667))
-		send("PASS oauth:%s" % secret.accesss_token)
+		send("PASS oauth:%s" % secret.access_token)
 		send("NICK %s" % target_channel)
 		try:
 			print(twitch.recv(8192))

@@ -636,7 +636,7 @@ int main(int argc, char** argv)
 									if(other->type != e_entity_type_chatter) { continue; }
 									if(other->dead) { continue; }
 
-									float distance = v2_distance(entity->pos, other->pos);
+									float distance = v2_distance_squared(entity->pos, other->pos);
 									if(distance < shortest_distance)
 									{
 										shortest_distance = distance;
@@ -722,77 +722,79 @@ int main(int argc, char** argv)
 
 						b8 expired = entity->time_alive >= 2;
 
-						foreach(other_i, other, game->entity_arr)
+						auto cell_arr = query_spatial_thing(entity->pos);
+						foreach_raw(cell_i, cell, cell_arr)
 						{
-							if(other_i == entity->owner) { continue; }
-
-							// @Note(tkap, 10/03/2023): This assumes that projectiles only collide with chatters and that chatters are all placed
-							// in the beginning of the array
-							if(other->type != e_entity_type_chatter) { break; }
-							if(other->dead) { continue; }
-
-							if(rect_collides_rect(entity->pos, c_projectile_size, other->pos, c_chatter_size))
+							for(int index_i = 0; index_i < cell->count; index_i++)
 							{
-								expired = true;
-								if(!other->shield_active)
+								int other_i = cell->entity_index_arr[index_i];
+								s_entity* other = &game->entity_arr[other_i];
+								assert(other->type == e_entity_type_chatter);
+								if(other_i == entity->owner) { continue; }
+								if(other->dead) { continue; }
+
+								if(rect_collides_rect(entity->pos, c_projectile_size, other->pos, c_chatter_size))
 								{
-									other->damage_taken += entity->damage;
-								}
-								other->mix_weight = 1;
-								if(other->damage_taken >= c_max_health)
-								{
-									other->dead = true;
-
-									remove_projectiles_of_chatter(other_i);
-
-									// @Note(tkap, 07/03/2023): Death particles
-									spawn_particles(
-										100,
-										{
-											.color_rand = 0.5f,
-											.speed_rand = 0.5f,
-											.dir_rand = 1,
-											.dir = maybe(v2(1, 0)),
-										},
-										{
-											.duration = 1.0f,
-											.start_speed = 300,
-											.pos = other->pos,
-											.start_size = v2(16),
-											.end_size = maybe(v2(0)),
-											.start_color = v4(1.0f, 0.1f, 0.1f),
-											.end_color = maybe(v4(0)),
-										}
-									);
-
-									// @Note(tkap, 07/03/2023): Level up particles
-									s_entity* owner = &game->entity_arr[entity->owner];
-									add_timed_message(format_text("%s killed %s", owner->name, other->name));
-									if(!owner->dead)
+									expired = true;
+									if(!other->shield_active)
 									{
+										other->damage_taken += entity->damage;
+									}
+									other->mix_weight = 1;
+									if(other->damage_taken >= c_max_health)
+									{
+										other->dead = true;
+										remove_projectiles_of_chatter(other_i);
+
+										// @Note(tkap, 07/03/2023): Death particles
 										spawn_particles(
 											100,
 											{
 												.color_rand = 0.5f,
 												.speed_rand = 0.5f,
-												.dir = maybe(v2(0, -1)),
-												.spawn_rect = c_chatter_size,
+												.dir_rand = 1,
+												.dir = maybe(v2(1, 0)),
 											},
 											{
-												.duration = 0.5f,
-												.start_speed = 100,
+												.duration = 1.0f,
+												.start_speed = 300,
+												.pos = other->pos,
 												.start_size = v2(16),
 												.end_size = maybe(v2(0)),
-												.start_color = v4(0.25f, 1.0f, 0.25f),
+												.start_color = v4(1.0f, 0.1f, 0.1f),
 												.end_color = maybe(v4(0)),
-												.target_chatter = owner,
 											}
 										);
-									}
 
+										// @Note(tkap, 07/03/2023): Level up particles
+										s_entity* owner = &game->entity_arr[entity->owner];
+										add_timed_message(format_text("%s killed %s", owner->name, other->name));
+										if(!owner->dead)
+										{
+											spawn_particles(
+												100,
+												{
+													.color_rand = 0.5f,
+													.speed_rand = 0.5f,
+													.dir = maybe(v2(0, -1)),
+													.spawn_rect = c_chatter_size,
+												},
+												{
+													.duration = 0.5f,
+													.start_speed = 100,
+													.start_size = v2(16),
+													.end_size = maybe(v2(0)),
+													.start_color = v4(0.25f, 1.0f, 0.25f),
+													.end_color = maybe(v4(0)),
+													.target_chatter = owner,
+												}
+											);
+										}
+									}
 									break;
 								}
 							}
+							if(expired) { break; }
 						}
 
 						s_v2 dir = v2_normalized(entity->dir);
@@ -904,7 +906,6 @@ int main(int argc, char** argv)
 						draw_text(msg->text.data, pos, color, e_font_small, false);
 					}
 
-
 					msg->time_passed += delta;
 					if(msg->time_passed >= c_message_duration)
 					{
@@ -970,9 +971,17 @@ int main(int argc, char** argv)
 
 		for(int cell_i = 0; cell_i < game->spatial_thing.cell_arr.max_elements(); cell_i++)
 		{
-			if(game->spatial_thing.cell_arr[cell_i].entity_index_arr)
+			s_cell* cell = &game->spatial_thing.cell_arr[cell_i];
+			// int c_cell_size = roundfi(g_window_size.x / c_cells_right);
+			// int x_index = cell_i % c_cells_right;
+			// int y_index = cell_i / c_cells_right;
+			// s_v2 pos = v2(x_index * c_cell_size, y_index * c_cell_size);
+			// draw_rect(pos, v2(c_cell_size), ((x_index + y_index) % 2) == 0 ? v4(0.5f) : v4(0.7f));
+			if(cell->entity_index_arr)
 			{
-				free(game->spatial_thing.cell_arr[cell_i].entity_index_arr);
+				// char* text = format_text("%i", cell->count);
+				// draw_text(text, pos, v4(1), e_font_small, false);
+				free(cell->entity_index_arr);
 			}
 		}
 		game->frame_data = zero;
@@ -1610,10 +1619,11 @@ func s_spatial_thing make_spatial_thing()
 	foreach(entity_i, entity, game->entity_arr)
 	{
 		if(entity->type != e_entity_type_chatter) { break; }
+		if(entity->dead) { continue; }
 
 		int c_cell_size = roundfi(g_window_size.x / c_cells_right);
-		int x_index = floorfi(entity->pos.x / c_cell_size);
-		int y_index = floorfi(entity->pos.y / c_cell_size);
+		int x_index = clamp(floorfi(entity->pos.x / c_cell_size), 0, c_cells_right - 1);
+		int y_index = clamp(floorfi(entity->pos.y / c_cell_size), 0, c_cells_right - 1);
 		int index = x_index + y_index * c_cells_right;
 
 		s_cell* cell = &bs.cell_arr[index];
